@@ -123,7 +123,7 @@ void flatten(Model& model, const std::vector<bool>& surfaceIsClosed,
 
 		if (nCones > 0) {
 			std::vector<VertexIter> cones;
-			DenseMatrix coneAngles(bff.data->iN);
+			DenseMatrix coneAngles(bff.data->iN,1);
 			int S = std::min(nCones, (int)mesh.vertices.size() - bff.data->bN);
 
 			if (ConePlacement::findConesAndPrescribeAngles(S, cones, coneAngles, bff.data, mesh)
@@ -149,7 +149,7 @@ void flatten(Model& model, const std::vector<bool>& surfaceIsClosed,
 					bff.flattenToDisk();
 
 				} else {
-					DenseMatrix u(bff.data->bN);
+					DenseMatrix u = DenseMatrix::Zero(bff.data->bN,1);
 					bff.flatten(u, true);
 				}
 			}

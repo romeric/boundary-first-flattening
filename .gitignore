@@ -1,6 +1,8 @@
 # Build directories
 build/
 build_debug/
+linbuild/
+winbuild/
 
 # Editor and OS things
 .DS_Store

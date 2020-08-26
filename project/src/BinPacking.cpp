@@ -13,9 +13,9 @@ bool attemptPacking(int boxLength, double unitsPerInt, const std::vector<Rect>& 
 {
 	int n = (int)rectangles.size();
 	modelMinBounds = Vector(std::numeric_limits<double>::max(),
-							std::numeric_limits<double>::max());
+							std::numeric_limits<double>::max(), 0.0);
 	modelMaxBounds = Vector(std::numeric_limits<double>::lowest(),
-							std::numeric_limits<double>::lowest());
+							std::numeric_limits<double>::lowest(), 0.0);
 	GuillotineBinPack packer(boxLength, boxLength);
 
 	for (int i = 0; i < n; i++) {
@@ -34,12 +34,12 @@ bool attemptPacking(int boxLength, double unitsPerInt, const std::vector<Rect>& 
 		flippedBins[i] = rect.width == rectangles[i].width ? false : true;
 
 		// compute new centers
-		newCenters[i] = Vector(rect.x + rect.width/2.0, rect.y + rect.height/2.0);
+		newCenters[i] = Vector(rect.x + rect.width/2.0, rect.y + rect.height/2.0, 0.0);
 		newCenters[i] *= unitsPerInt;
-		modelMinBounds.x = std::min((double)rect.x, modelMinBounds.x);
-		modelMinBounds.y = std::min((double)rect.y, modelMinBounds.y);
-		modelMaxBounds.x = std::max((double)(rect.x + rect.width), modelMaxBounds.x);
-		modelMaxBounds.y = std::max((double)(rect.y + rect.height), modelMaxBounds.y);
+		modelMinBounds[0] = std::min((double)rect.x, modelMinBounds[0]);
+		modelMinBounds[1] = std::min((double)rect.y, modelMinBounds[1]);
+		modelMaxBounds[0] = std::max((double)(rect.x + rect.width),  modelMaxBounds[0]);
+		modelMaxBounds[1] = std::max((double)(rect.y + rect.height), modelMaxBounds[1]);
 	}
 
 	return true;
@@ -51,11 +51,11 @@ void BinPacking::pack(Model& model, const std::vector<bool>& mappedToSphere,
 {
 	// compute bounding boxes
 	int n = model.size();
-	double totalArea = 0.0;
+	double totalArea = 1e-08;
 	std::vector<Vector> minBounds(n, Vector(std::numeric_limits<double>::max(),
-											std::numeric_limits<double>::max()));
+											std::numeric_limits<double>::max(), 0.0));
 	std::vector<Vector> maxBounds(n, Vector(std::numeric_limits<double>::lowest(),
-											std::numeric_limits<double>::lowest()));
+											std::numeric_limits<double>::lowest(), 0.0));
 
 	for (int i = 0; i < n; i++) {
 		// compute component radius
@@ -77,20 +77,20 @@ void BinPacking::pack(Model& model, const std::vector<bool>& mappedToSphere,
 			Vector uv = w->uv;
 			if (mappedToSphere[i]) {
 				uv /= radius;
-				uv.x = 0.5 + atan2(uv.z, uv.x)/(2*M_PI);
-				uv.y = 0.5 - asin(uv.y)/M_PI;
+				uv[0] = 0.5 + atan2(uv[2], uv[0])/(2*M_PI);
+				uv[1] = 0.5 - asin(uv[1])/M_PI;
 
 			} else {
 				uv *= radius;
 			}
 
-			minBounds[i].x = std::min(uv.x, minBounds[i].x);
-			minBounds[i].y = std::min(uv.y, minBounds[i].y);
-			maxBounds[i].x = std::max(uv.x, maxBounds[i].x);
-			maxBounds[i].y = std::max(uv.y, maxBounds[i].y);
+			minBounds[i][0] = std::min(uv[0], minBounds[i][0]);
+			minBounds[i][1] = std::min(uv[1], minBounds[i][1]);
+			maxBounds[i][0] = std::max(uv[0], maxBounds[i][0]);
+			maxBounds[i][1] = std::max(uv[1], maxBounds[i][1]);
 		}
 
-		totalArea += (maxBounds[i].x - minBounds[i].x)*(maxBounds[i].y - minBounds[i].y);
+		totalArea += (maxBounds[i][0] - minBounds[i][0])*(maxBounds[i][1] - minBounds[i][1]);
 	}
 
 	// quantize boxes
@@ -101,16 +101,16 @@ void BinPacking::pack(Model& model, const std::vector<bool>& mappedToSphere,
 	double unitsPerInt = sqrt(totalArea)/(double)maxBoxLength;
 
 	for (int i = 0; i < n; i++) {
-		int minX = static_cast<int>(floor(minBounds[i].x/unitsPerInt));
-		int minY = static_cast<int>(floor(minBounds[i].y/unitsPerInt));
-		int maxX = static_cast<int>(ceil(maxBounds[i].x/unitsPerInt));
-		int maxY = static_cast<int>(ceil(maxBounds[i].y/unitsPerInt));
+		int minX = static_cast<int>(floor(minBounds[i][0]/unitsPerInt));
+		int minY = static_cast<int>(floor(minBounds[i][1]/unitsPerInt));
+		int maxX = static_cast<int>(ceil(maxBounds[i][0]/unitsPerInt));
+		int maxY = static_cast<int>(ceil(maxBounds[i][1]/unitsPerInt));
 
 		int width = maxX - minX;
 		int height = maxY - minY;
 		rectangles[i] = Rect{minX, minY, width, height};
-		originalCenters[i].x = (minX + maxX)/2.0;
-		originalCenters[i].y = (minY + maxY)/2.0;
+		originalCenters[i][0] = (minX + maxX)/2.0;
+		originalCenters[i][1] = (minY + maxY)/2.0;
 		originalCenters[i] *= unitsPerInt;
 	}
 

@@ -74,12 +74,12 @@ double Mesh::diameter() const
 	for (VertexCIter v = vertices.begin(); v != vertices.end(); v++) {
 		const Vector& p = v->position;
 
-		minBounds.x = std::min(p.x, minBounds.x);
-		minBounds.y = std::min(p.y, minBounds.y);
-		minBounds.z = std::min(p.z, minBounds.z);
-		maxBounds.x = std::max(p.x, maxBounds.x);
-		maxBounds.y = std::max(p.y, maxBounds.y);
-		maxBounds.z = std::max(p.z, maxBounds.z);
+		minBounds[0] = std::min(p[0], minBounds[0]);
+		minBounds[1] = std::min(p[1], minBounds[1]);
+		minBounds[2] = std::min(p[2], minBounds[2]);
+		maxBounds[0] = std::max(p[0], maxBounds[0]);
+		maxBounds[1] = std::max(p[1], maxBounds[1]);
+		maxBounds[2] = std::max(p[2], maxBounds[2]);
 	}
 
 	return (maxBounds - minBounds).norm();
@@ -91,16 +91,16 @@ void computeEigenvectors2x2(double a, double b, double c, Vector& v1, Vector& v2
 	double lambda1 = (a + c)/2.0 - disc;
 	double lambda2 = (a + c)/2.0 + disc;
 
-	v1 = b < 0.0 ? Vector(-b, a - lambda1) : Vector(b, lambda2 - a);
+	v1 = b < 0.0 ? Vector(-b, a - lambda1, 0.) : Vector(b, lambda2 - a, 0.);
 	double v1Norm = v1.norm();
 	if (v1Norm > 0) v1 /= v1Norm;
-	v2 = Vector(-v1.y, v1.x);
+	v2 = Vector(-v1[1], v1[0], 0.0);
 }
 
 void Mesh::projectUvsToPcaAxis()
 {
 	// compute center of mass
-	Vector cm;
+    Vector cm; cm.setZero();
 	double totalArea = 1e-8;
 	FaceData<double> areaUV(*this);
 	for (FaceCIter f = faces.begin(); f != faces.end(); f++) {
@@ -128,9 +128,9 @@ void Mesh::projectUvsToPcaAxis()
 			Vector centroid = f->centroidUV();
 			double area = areaUV[f];
 
-			a += centroid.x*centroid.x*area;
-			b += centroid.x*centroid.y*area;
-			c += centroid.y*centroid.y*area;
+			a += centroid[0]*centroid[0]*area;
+			b += centroid[0]*centroid[1]*area;
+			c += centroid[1]*centroid[1]*area;
 		}
 	}
 
@@ -142,7 +142,7 @@ void Mesh::projectUvsToPcaAxis()
 	for (WedgeIter w = wedges().begin(); w != wedges().end(); w++) {
 		if (w->isReal()) {
 			Vector& uv = w->uv;
-			uv = Vector(dot(v1, uv), dot(v2, uv));
+			uv = Vector(dot(v1, uv), dot(v2, uv), 0.);
 			uv += cm;
 		}
 	}

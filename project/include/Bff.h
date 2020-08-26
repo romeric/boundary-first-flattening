@@ -1,7 +1,7 @@
 #pragma once
 
 #include "MeshData.h"
-#include "Cholesky.h"
+#include "Common.h"
 #include <memory>
 
 namespace bff {

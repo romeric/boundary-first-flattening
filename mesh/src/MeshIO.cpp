@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <queue>
 #include <iomanip>
+#include <cassert>
 
 namespace bff {
 
@@ -492,7 +493,7 @@ bool MeshIO::read(std::istringstream& in, Model& model, std::string& error)
 	}
 
 	// construct table
-	soup.table.construct(soup.positions.size(), soup.indices);
+	soup.table.construct((int)soup.positions.size(), soup.indices);
 	std::vector<int> isCuttableEdge(soup.table.getSize(), 1);
 	for (std::set<std::pair<int, int>>::iterator it = uncuttableEdges.begin();
 												 it != uncuttableEdges.end();
@@ -521,7 +522,7 @@ bool MeshIO::read(std::istringstream& in, Model& model, std::string& error)
 void MeshIO::normalize(Model& model)
 {
 	// compute center of mass
-	Vector cm;
+    Vector cm; cm.setZero();
 	int nVertices = 0;
 	for (int i = 0; i < model.size(); i++) {
 		for (VertexCIter v = model[i].vertices.begin(); v != model[i].vertices.end(); v++) {
@@ -553,13 +554,14 @@ void MeshIO::normalize(Model& model)
 
 bool MeshIO::read(const std::string& fileName, Model& model, std::string& error)
 {
-	std::ifstream in(fileName.c_str());
+    std::ifstream in(fileName.c_str());
+    assert(in.good());
 	std::istringstream buffer;
 
 	if (!in.is_open()) {
 		return false;
-
-	} else {
+	} 
+    else {
 		buffer.str(std::string(std::istreambuf_iterator<char>(in),
 							   std::istreambuf_iterator<char>()));
 	}
@@ -586,8 +588,8 @@ void writeUV(std::ofstream& out, Vector uv, bool mapToSphere, double sphereRadiu
 	// resize
 	if (mapToSphere) {
 		uv /= sphereRadius;
-		uv.x = 0.5 + atan2(uv.z, uv.x)/(2*M_PI);
-		uv.y = 0.5 - asin(uv.y)/M_PI;
+		uv[0] = 0.5 + atan2(uv[2], uv[0])/(2*M_PI);
+		uv[1] = 0.5 - asin(uv[1])/M_PI;
 
 	} else {
 		uv *= meshRadius;
@@ -595,14 +597,14 @@ void writeUV(std::ofstream& out, Vector uv, bool mapToSphere, double sphereRadiu
 
 	// shift
 	uv -= oldCenter;
-	if (flipped) uv = Vector(-uv.y, uv.x);
+	if (flipped) uv = Vector(-uv[1], uv[0], 0.);
 	uv += newCenter;
 	uv -= minExtent;
 	if (normalize) uv /= extent;
 
 	// write to file
-	writeString(out, "vt " + std::to_string(uv.x) + " " +
-							 std::to_string(uv.y) + "\n");
+	writeString(out, "vt " + std::to_string(uv[0]) + " " +
+							 std::to_string(uv[1]) + "\n");
 }
 
 void MeshIO::write(std::ofstream& out, Model& model,
@@ -622,21 +624,21 @@ void MeshIO::write(std::ofstream& out, Model& model,
 		VertexCIter v = mesh.vertices.begin() + vData.second;
 
 		Vector p = v->position*mesh.radius + mesh.cm;
-		writeString(out, "v " + std::to_string(p.x) + " " +
-								std::to_string(p.y) + " " +
-								std::to_string(p.z) + "\n");
+		writeString(out, "v " + std::to_string(p[0]) + " " +
+								std::to_string(p[1]) + " " +
+								std::to_string(p[2]) + "\n");
 	}
 
 	// write uvs and indices
 	int nUvs = 0;
 	for (int i = 0; i < model.size(); i++) {
 		// compute uv radius and shift
-		Vector minExtent(modelMinBounds.x, modelMinBounds.y);
-		double dx = modelMaxBounds.x - minExtent.x;
-		double dy = modelMaxBounds.y - minExtent.y;
+		Vector minExtent(modelMinBounds[0], modelMinBounds[1], 0.);
+		double dx = modelMaxBounds[0] - minExtent[0];
+		double dy = modelMaxBounds[1] - minExtent[1];
 		double extent = std::max(dx, dy);
-		minExtent.x -= (extent - dx)/2.0;
-		minExtent.y -= (extent - dy)/2.0;
+		minExtent[0] -= (extent - dx)/2.0;
+		minExtent[1] -= (extent - dy)/2.0;
 
 		// compute sphere radius if component has been mapped to a sphere
 		double sphereRadius = 1.0;

@@ -32,8 +32,8 @@ double computeQuasiConformalError(std::vector<Vector>& p, std::vector<Vector>& q
 
 	double A = 2.0*cross(u1, u2).norm();
 
-	Vector Ss = (q[0]*(p[1].y - p[2].y) + q[1]*(p[2].y - p[0].y) + q[2]*(p[0].y - p[1].y)) / A;
-	Vector St = (q[0]*(p[2].x - p[1].x) + q[1]*(p[0].x - p[2].x) + q[2]*(p[1].x - p[0].x)) / A;
+	Vector Ss = (q[0]*(p[1][1] - p[2][1]) + q[1]*(p[2][1] - p[0][1]) + q[2]*(p[0][1] - p[1][1])) / A;
+	Vector St = (q[0]*(p[2][0] - p[1][0]) + q[1]*(p[0][0] - p[2][0]) + q[2]*(p[1][0] - p[0][0])) / A;
 	double a = dot(Ss, Ss);
 	double b = dot(Ss, St);
 	double c = dot(St, St);
