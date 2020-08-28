@@ -179,56 +179,26 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
     return out;
 #endif
 
-    // Get the list of rows to delete
-    std::vector<int> rows_to_remove;
+    // Get row mapping
+    int sum = 0;
+    std::map<int,int> mappedRows;
     for (int i = 0; i < A.rows(); ++i) {
-        auto res = std::find(std::begin(r), std::end(r), i);
-        if (res == std::end(r)) {
-            rows_to_remove.push_back(i);
+        auto res = std::binary_search(std::begin(r), std::end(r), i);
+        if (!res) {
+            sum += 1;
         }
+        mappedRows.insert(std::make_pair(i, i - sum));
     }
 
-    // Get the list of columns to delete
-    std::vector<int> cols_to_remove;
+    // Get col mapping
+    sum = 0;
+    std::map<int,int> mappedCols;
     for (int i = 0; i < A.cols(); ++i) {
-        auto res = std::find(std::begin(c), std::end(c), i);
-        if (res == std::end(c)) {
-            cols_to_remove.push_back(i);
+        auto res = std::binary_search(std::begin(c), std::end(c), i);
+        if (!res) {
+            sum += 1;
         }
-    }
-
-    // Create a temporary non-Eigen triplet vector to store i,j,v
-    // to be modified later and push_back all ijvs that need to remain
-    std::vector<std::pair<std::array<Eigen::Index, 2>, double>> triplet;
-    triplet.reserve(A.nonZeros());
-    for (int i = 0; i < A.outerSize(); i++) {
-        for (typename SparseMatrix::InnerIterator it(A, i); it; ++it) {
-            if (std::binary_search(r.begin(), r.end(), it.row()) &&
-                std::binary_search(c.begin(), c.end(), it.col())
-                )
-            {
-                std::array<Eigen::Index, 2> cur = { it.row(), it.col() };
-                triplet.push_back(std::make_pair(cur, it.value()));
-            }
-        }
-    }
-
-    std::vector<std::pair<std::array<Eigen::Index, 2>, double>> triplet_copy = triplet;
-    // Map rows to ground
-    for (int i = 0; i < rows_to_remove.size(); ++i) {
-        for (int j = 0; j < triplet.size(); ++j) {
-            if (triplet_copy[j].first[0] > rows_to_remove[i]) {
-                triplet[j].first[0] -= 1;
-            }
-        }
-    }
-    // Map cols to ground
-    for (int i = 0; i < cols_to_remove.size(); ++i) {
-        for (int j = 0; j < triplet.size(); ++j) {
-            if (triplet_copy[j].first[1] > cols_to_remove[i]) {
-                triplet[j].first[1] -= 1;
-            }
-        }
+        mappedCols.insert(std::make_pair(i, i - sum));
     }
 
     // Create the final Eigen sparse matrix
@@ -236,8 +206,17 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
     std::vector<Triplet> T;
     T.reserve(A.nonZeros());
 
-    for (int i = 0; i < triplet.size(); ++i) {
-        T.push_back(Triplet((int)triplet[i].first[0], (int)triplet[i].first[1], triplet[i].second));
+    for (int i = 0; i < A.outerSize(); i++) {
+        for (typename SparseMatrix::InnerIterator it(A, i); it; ++it) {
+            if (std::binary_search(r.begin(), r.end(), it.row()) &&
+                std::binary_search(c.begin(), c.end(), it.col())
+                )
+            {
+                std::map<int,int>::iterator mit = mappedRows.find((int)it.row());
+                std::map<int,int>::iterator mjt = mappedCols.find((int)it.col());
+                T.push_back(Triplet(mit->second, mjt->second, it.value()));
+            }
+        }
     }
 
     SparseMatrix out(r.size(), c.size());
