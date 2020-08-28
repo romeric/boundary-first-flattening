@@ -13,14 +13,13 @@
 #include <algorithm>
 #include <array>
 #include <iostream>
-#include <map>
-#include <unordered_map>
 
 // Eigen typdefs
 namespace bff  {
 using Vector = Eigen::Matrix<double,3,1>;
 using DenseMatrix = Eigen::MatrixXd;
 using SparseMatrix = Eigen::SparseMatrix<double>;
+// using SparseMatrix = Eigen::SparseMatrix<double,Eigen::RowMajor>;
 
 #if defined(BFF_USE_MKL)
 // using SparseSolver = Eigen::PardisoLDLT<SparseMatrix>;
@@ -43,6 +42,7 @@ inline void print(const T& a) {
 /*-------------------------------------------------------------------------------------*/
 /*-------------------------------------------------------------------------------------*/
 
+// Vector utility
 /*-------------------------------------------------------------------------------------*/
 /*-------------------------------------------------------------------------------------*/
 inline double dot(const Vector& u, const Vector& v)
@@ -170,16 +170,16 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
     return out;
 #endif
 
-    // performance of unordered_map vs map needs to be tested on more samples
     // Get row mapping
     int sum = 0;
-    std::unordered_map<int,int> mappedRows;
+    std::vector<int> mappedRows;
+    mappedRows.reserve(A.rows());
     for (int i = 0; i < A.rows(); ++i) {
         auto res = std::binary_search(std::begin(r), std::end(r), i);
         if (!res) {
             sum += 1;
         }
-        mappedRows.insert(std::make_pair(i, i - sum));
+        mappedRows.push_back(i - sum);
     }
 
     // Create the final Eigen sparse matrix
@@ -193,9 +193,9 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
                 std::binary_search(r.begin(), r.end(), it.col())
                 )
             {
-                auto mit = mappedRows.find((int)it.row());
-                auto mjt = mappedRows.find((int)it.col());
-                T.push_back(Triplet(mit->second, mjt->second, it.value()));
+                const auto mit = mappedRows[it.row()];
+                const auto mjt = mappedRows[it.col()];
+                T.push_back(Triplet(mit, mjt, it.value()));
             }
         }
     }
@@ -236,27 +236,28 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
     return out;
 #endif
 
-    // performance of unordered_map vs map needs to be tested on more samples
     // Get row mapping
     int sum = 0;
-    std::unordered_map<int,int> mappedRows;
+    std::vector<int> mappedRows;
+    mappedRows.reserve(A.rows());
     for (int i = 0; i < A.rows(); ++i) {
         auto res = std::binary_search(std::begin(r), std::end(r), i);
         if (!res) {
             sum += 1;
         }
-        mappedRows.insert(std::make_pair(i, i - sum));
+        mappedRows.push_back(i - sum);
     }
 
     // Get col mapping
     sum = 0;
-    std::unordered_map<int,int> mappedCols;
+    std::vector<int> mappedCols;
+    mappedCols.reserve(A.rows());
     for (int i = 0; i < A.cols(); ++i) {
         auto res = std::binary_search(std::begin(c), std::end(c), i);
         if (!res) {
             sum += 1;
         }
-        mappedCols.insert(std::make_pair(i, i - sum));
+        mappedCols.push_back(i - sum);
     }
 
     // Create the final Eigen sparse matrix
@@ -270,9 +271,9 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
                 std::binary_search(c.begin(), c.end(), it.col())
                 )
             {
-                auto mit = mappedRows.find((int)it.row());
-                auto mjt = mappedCols.find((int)it.col());
-                T.push_back(Triplet(mit->second, mjt->second, it.value()));
+                const auto mit = mappedRows[it.row()];
+                const auto mjt = mappedCols[it.col()];
+                T.push_back(Triplet(mit, mjt, it.value()));
             }
         }
     }
