@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <array>
 #include <iostream>
+#include <map>
+#include <unordered_map>
 
 // Eigen typdefs
 namespace bff  {
@@ -141,37 +143,26 @@ inline SparseMatrix diag(const DenseMatrix& d)
     return sm;
 }
 
-
+// submatrix extraction when r==c
 inline SparseMatrix submatrix(  const SparseMatrix& A,
-                                const std::vector<int>& r,
-                                const std::vector<int>& c) {
+                                const std::vector<int>& r) {
+
+    if ((int)r.size()==A.rows() && (int)r.size()==A.cols()) return A;
+
 #if 0
-     using Triplet = Eigen::Triplet<double>;
-     std::vector<Triplet> T;
-     T.reserve(A.nonZeros());
-     double tol = 1e-14;
+    using Triplet = Eigen::Triplet<double>;
+    std::vector<Triplet> T;
+    T.reserve(A.nonZeros());
+    double tol = 1e-14;
 
-     for (int i=0; i<(int)r.size(); ++i) {
-         for (int j=0; j<(int)c.size(); ++j) {
-             //if (std::binary_search(IJ.begin(), IJ.end(), std::make_pair(i, j))) {
-                 double entry = A.coeff(r[i], c[j]);
-                 if (std::abs(entry) > tol) {
-                     T.push_back(Triplet(i, j, entry));
-                 }
-             //}
-         }
-     }
-
-    //for (int i = 0; i < A.outerSize(); i++) {
-    //    for (typename SparseMatrix::InnerIterator it(A, i); it; ++it) {
-    //        if (
-    //            std::binary_search(r.begin(), r.end(), it.row()) &&
-    //            std::binary_search(c.begin(), c.end(), it.col())
-    //            ) {
-    //            T.push_back(Triplet(it.row(), it.col(), it.value()));
-    //        }
-    //    }
-    //}
+    for (int i=0; i<(int)r.size(); ++i) {
+        for (int j=0; j<(int)c.size(); ++j) {
+            double entry = A.coeff(r[i], c[j]);
+            if (std::abs(entry) > tol) {
+             T.push_back(Triplet(i, j, entry));
+            }
+        }
+    }
 
     SparseMatrix out(r.size(), c.size());
     out.setFromTriplets(T.begin(), T.end());
@@ -179,9 +170,76 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
     return out;
 #endif
 
+    // performance of unordered_map vs map needs to be tested on more samples
     // Get row mapping
     int sum = 0;
-    std::map<int,int> mappedRows;
+    std::unordered_map<int,int> mappedRows;
+    for (int i = 0; i < A.rows(); ++i) {
+        auto res = std::binary_search(std::begin(r), std::end(r), i);
+        if (!res) {
+            sum += 1;
+        }
+        mappedRows.insert(std::make_pair(i, i - sum));
+    }
+
+    // Create the final Eigen sparse matrix
+    using Triplet = Eigen::Triplet<double>;
+    std::vector<Triplet> T;
+    T.reserve(A.nonZeros());
+
+    for (int i = 0; i < A.outerSize(); i++) {
+        for (typename SparseMatrix::InnerIterator it(A, i); it; ++it) {
+            if (std::binary_search(r.begin(), r.end(), it.row()) &&
+                std::binary_search(r.begin(), r.end(), it.col())
+                )
+            {
+                auto mit = mappedRows.find((int)it.row());
+                auto mjt = mappedRows.find((int)it.col());
+                T.push_back(Triplet(mit->second, mjt->second, it.value()));
+            }
+        }
+    }
+
+    SparseMatrix out(r.size(), r.size());
+    out.setFromTriplets(T.begin(), T.end());
+    out.makeCompressed();
+
+    return out;
+}
+
+
+// submatrix extraction when r!=c
+inline SparseMatrix submatrix(  const SparseMatrix& A,
+                                const std::vector<int>& r,
+                                const std::vector<int>& c) {
+
+    if ((int)r.size()==A.rows() && (int)c.size()==A.cols()) return A;
+
+#if 0
+    using Triplet = Eigen::Triplet<double>;
+    std::vector<Triplet> T;
+    T.reserve(A.nonZeros());
+    double tol = 1e-14;
+
+    for (int i=0; i<(int)r.size(); ++i) {
+        for (int j=0; j<(int)c.size(); ++j) {
+            double entry = A.coeff(r[i], c[j]);
+            if (std::abs(entry) > tol) {
+             T.push_back(Triplet(i, j, entry));
+            }
+        }
+    }
+
+    SparseMatrix out(r.size(), c.size());
+    out.setFromTriplets(T.begin(), T.end());
+    out.makeCompressed();
+    return out;
+#endif
+
+    // performance of unordered_map vs map needs to be tested on more samples
+    // Get row mapping
+    int sum = 0;
+    std::unordered_map<int,int> mappedRows;
     for (int i = 0; i < A.rows(); ++i) {
         auto res = std::binary_search(std::begin(r), std::end(r), i);
         if (!res) {
@@ -192,7 +250,7 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
 
     // Get col mapping
     sum = 0;
-    std::map<int,int> mappedCols;
+    std::unordered_map<int,int> mappedCols;
     for (int i = 0; i < A.cols(); ++i) {
         auto res = std::binary_search(std::begin(c), std::end(c), i);
         if (!res) {
@@ -212,8 +270,8 @@ inline SparseMatrix submatrix(  const SparseMatrix& A,
                 std::binary_search(c.begin(), c.end(), it.col())
                 )
             {
-                std::map<int,int>::iterator mit = mappedRows.find((int)it.row());
-                std::map<int,int>::iterator mjt = mappedCols.find((int)it.col());
+                auto mit = mappedRows.find((int)it.row());
+                auto mjt = mappedCols.find((int)it.col());
                 T.push_back(Triplet(mit->second, mjt->second, it.value()));
             }
         }

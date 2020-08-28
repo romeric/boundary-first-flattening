@@ -80,7 +80,8 @@ bool ConePlacement::computeTargetAngles(DenseMatrix& C, const DenseMatrix& K,
 
         if (n.size() > 0) {
             // extract submatrices
-            SparseMatrix Ann = submatrix(A, n, n);
+            //SparseMatrix Ann = submatrix(A, n, n);
+            SparseMatrix Ann = submatrix(A, n);
             SparseMatrix Ans = submatrix(A, n, s);
             DenseMatrix Kn = submatrix(K, n);
 
@@ -197,7 +198,8 @@ bool ConePlacement::computeScaleFactors(DenseMatrix& u, const DenseMatrix& K,
     if (n.size() > 0) {
         // extract submatrices
         DenseMatrix Kn = submatrix(-K, n);
-        SparseMatrix Ann = submatrix(A, n, n);
+        //SparseMatrix Ann = submatrix(A, n, n);
+        SparseMatrix Ann = submatrix(A, n);
 
         // compute scale factors
         SparseSolver solver;
