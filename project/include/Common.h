@@ -1,34 +1,22 @@
 #pragma once
 
 // #define BFF_USE_MKL 1
+// #define BFF_USE_CHOLMOD 1
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
 #include <Eigen/SparseCholesky>
-
 #if defined(BFF_USE_MKL)
 #include <Eigen/PardisoSupport>
+#endif
+#if defined(BFF_USE_CHOLMOD)
+#include <Eigen/CholmodSupport>
 #endif
 
 #include <algorithm>
 #include <array>
 #include <iostream>
 
-// Eigen typdefs
-namespace bff  {
-using Vector = Eigen::Matrix<double,3,1>;
-using DenseMatrix = Eigen::MatrixXd;
-using SparseMatrix = Eigen::SparseMatrix<double>;
-// using SparseMatrix = Eigen::SparseMatrix<double,Eigen::RowMajor>;
-
-#if defined(BFF_USE_MKL)
-// using SparseSolver = Eigen::PardisoLDLT<SparseMatrix>;
-using SparseSolver = Eigen::PardisoLLT<SparseMatrix>;
-#else
-// using SparseSolver = Eigen::SimplicialLDLT<SparseMatrix>;
-using SparseSolver = Eigen::SimplicialLLT<SparseMatrix>;
-#endif
-}
 
 namespace bff  {
 
@@ -39,6 +27,25 @@ template<typename T>
 inline void print(const T& a) {
     std::cout << a << '\n';
 }
+/*-------------------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------*/
+
+// Eigen typdefs
+/*-------------------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------------------*/
+using Vector = Eigen::Matrix<double,3,1>;
+using DenseMatrix = Eigen::MatrixXd;
+using SparseMatrix = Eigen::SparseMatrix<double>;
+
+#if !defined(BFF_USE_MKL) && !defined(BFF_USE_CHOLMOD)
+using SparseSolver = Eigen::SimplicialLLT<SparseMatrix>;
+#elif defined(BFF_USE_MKL) && !defined(BFF_USE_CHOLMOD)
+using SparseSolver = Eigen::PardisoLLT<SparseMatrix>;
+#elif !defined(BFF_USE_MKL) && defined(BFF_USE_CHOLMOD)
+using SparseSolver = Eigen::CholmodDecomposition<SparseMatrix>;
+#else
+#error CONFLICTING SPARSE SOLVERS SELECTED - CHOOSE ONE
+#endif
 /*-------------------------------------------------------------------------------------*/
 /*-------------------------------------------------------------------------------------*/
 
